@@ -2,10 +2,14 @@ import {
   CompletionHandler,
   IInlineCompletionContext
 } from '@jupyterlab/completer';
-import { LLM } from '@langchain/core/language_models/llms';
-import { MistralAI } from '@langchain/mistralai';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage
+} from '@langchain/core/messages';
+import { ChatMistralAI } from '@langchain/mistralai';
 import { Throttler } from '@lumino/polling';
-import { CompletionRequest } from '@mistralai/mistralai';
 
 import { BaseCompleter, IBaseCompleter } from './base-completer';
 
@@ -15,59 +19,51 @@ import { BaseCompleter, IBaseCompleter } from './base-completer';
 const INTERVAL = 1000;
 
 /**
- * Timeout to avoid endless requests
+ * The default prompt for the completion request
+ * TODO: move somewhere else so it can be used by other completers
+ * See: https://github.com/jupyterlite/ai/issues/25
  */
-const REQUEST_TIMEOUT = 3000;
+const DEFAULT_PROMPT = `
+You are an application built to provide helpful code completion suggestions. \
+You should only produce code. Keep comments to minimum, use the \
+programming language comment syntax. Produce clean code. \
+The output should be a single string, and should correspond to what a human users \
+would write after the content of the message, without fenced code block and backtick. \
+The code is written in JupyterLab, a data analysis and code development \
+environment which can execute code extended with additional syntax for \
+interactive features, such as magics.
+`;
 
 export class CodestralCompleter implements IBaseCompleter {
   constructor(options: BaseCompleter.IOptions) {
-    // this._requestCompletion = options.requestCompletion;
-    this._mistralProvider = new MistralAI({ ...options.settings });
+    this._mistralProvider = new ChatMistralAI({ ...options.settings });
     this._throttler = new Throttler(
-      async (data: CompletionRequest) => {
-        const invokedData = data;
-
-        // Request completion.
-        const request = this._mistralProvider.completionWithRetry(
-          data,
-          {},
-          false
-        );
-        const timeoutPromise = new Promise<null>(resolve => {
-          return setTimeout(() => resolve(null), REQUEST_TIMEOUT);
-        });
-
-        // Fetch again if the request is too long or if the prompt has changed.
-        const response = await Promise.race([request, timeoutPromise]);
-        if (
-          response === null ||
-          invokedData.prompt !== this._currentData?.prompt
-        ) {
-          return {
-            items: [],
-            fetchAgain: true
-          };
-        }
-
+      async (messages: BaseMessage[]) => {
+        const response = await this._mistralProvider.invoke(messages);
         // Extract results of completion request.
-        const items = response.choices.map((choice: any) => {
-          return { insertText: choice.message.content as string };
-        });
-
-        return {
-          items
-        };
+        const items = [];
+        if (typeof response.content === 'string') {
+          items.push({
+            insertText: response.content
+          });
+        } else {
+          response.content.forEach(content => {
+            if (content.type !== 'text') {
+              return;
+            }
+            items.push({
+              insertText: content.text
+            });
+          });
+        }
+        return { items };
       },
       { limit: INTERVAL }
     );
   }
 
-  get provider(): LLM {
+  get provider(): BaseChatModel {
     return this._mistralProvider;
-  }
-
-  set requestCompletion(value: () => void) {
-    this._requestCompletion = value;
   }
 
   async fetch(
@@ -76,38 +72,20 @@ export class CodestralCompleter implements IBaseCompleter {
   ) {
     const { text, offset: cursorOffset } = request;
     const prompt = text.slice(0, cursorOffset);
-    const suffix = text.slice(cursorOffset);
 
-    const data = {
-      prompt,
-      suffix,
-      model: this._mistralProvider.model,
-      // temperature: 0,
-      // top_p: 1,
-      // max_tokens: 1024,
-      // min_tokens: 0,
-      stream: false,
-      // random_seed: 1337,
-      stop: []
-    };
+    const messages: BaseMessage[] = [
+      new SystemMessage(DEFAULT_PROMPT),
+      new HumanMessage(prompt)
+    ];
 
     try {
-      this._currentData = data;
-      const completionResult = await this._throttler.invoke(data);
-      if (completionResult.fetchAgain) {
-        if (this._requestCompletion) {
-          this._requestCompletion();
-        }
-      }
-      return { items: completionResult.items };
+      return await this._throttler.invoke(messages);
     } catch (error) {
       console.error('Error fetching completions', error);
       return { items: [] };
     }
   }
 
-  private _requestCompletion?: () => void;
   private _throttler: Throttler;
-  private _mistralProvider: MistralAI;
-  private _currentData: CompletionRequest | null = null;
+  private _mistralProvider: ChatMistralAI;
 }
