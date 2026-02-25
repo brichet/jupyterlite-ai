@@ -78,3 +78,39 @@ factory: (options: { apiKey: string; baseURL?: string; model?: string }) => {
   return provider(options.model || 'my-model');
 };
 ```
+
+## Provider-Specific Tools
+
+When you add a provider that is not built in, you may also want to expose tools
+that are specific to that provider.
+
+In AI SDK terms, this can be either:
+
+- **Provider-defined tools** (declared as provider tools in AI SDK), or
+- **Provider-executed tools** (tool helpers exposed directly by provider SDKs).
+
+In `jupyterlite-ai`, provider-hosted web tools are wired through
+`IProviderInfo.providerToolCapabilities`. This means custom providers can opt in
+without relying on hardcoded provider IDs.
+
+If you want to support provider-specific tools in your extension:
+
+1. Register your provider with `IProviderRegistry` (as shown above).
+2. Define `providerToolCapabilities` on your `IProviderInfo` entry.
+3. Decide how users enable them (for example, `customSettings` UI toggles).
+4. Add runtime mapping for new capability implementations if needed.
+5. Document provider-specific constraints.
+
+Examples of provider-specific capabilities in AI SDK provider docs include web
+search/fetch, file search, URL context retrieval, code execution, and image
+generation depending on the provider.
+
+References:
+
+- AI SDK tools overview: <https://ai-sdk.dev/docs/foundations/tools>
+- AI SDK provider-defined tool reference: <https://ai-sdk.dev/docs/reference/ai-sdk-core/tool>
+- OpenAI provider docs: <https://ai-sdk.dev/providers/ai-sdk-providers/openai>
+- Anthropic provider docs: <https://ai-sdk.dev/providers/ai-sdk-providers/anthropic>
+
+For end-user web retrieval behavior and setup details, see
+[Web Retrieval](./web-retrieval.md).

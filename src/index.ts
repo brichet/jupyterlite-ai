@@ -113,6 +113,7 @@ import {
   createExecuteCommandTool
 } from './tools/commands';
 import { createDiscoverSkillsTool, createLoadSkillTool } from './tools/skills';
+import { createBrowserFetchTool } from './tools/web';
 
 import { AISettingsWidget } from './widgets/ai-settings';
 
@@ -918,6 +919,7 @@ const toolRegistry: JupyterFrontEndPlugin<IToolRegistry> = {
 
     toolRegistry.add('discover_commands', discoverCommandsTool);
     toolRegistry.add('execute_command', executeCommandTool);
+    toolRegistry.add('browser_fetch', createBrowserFetchTool());
     if (skillRegistry) {
       toolRegistry.add(
         'discover_skills',
@@ -939,12 +941,13 @@ const inputToolbarFactory: JupyterFrontEndPlugin<IInputToolbarRegistryFactory> =
     description: 'The input toolbar registry plugin.',
     autoStart: true,
     provides: IInputToolbarRegistryFactory,
-    requires: [IAISettingsModel, IToolRegistry],
+    requires: [IAISettingsModel, IToolRegistry, IProviderRegistry],
     optional: [ITranslator],
     activate: (
       app: JupyterFrontEnd,
       settingsModel: AISettingsModel,
       toolRegistry: IToolRegistry,
+      providerRegistry: IProviderRegistry,
       translator?: ITranslator
     ): IInputToolbarRegistryFactory => {
       const trans = (translator ?? nullTranslator).load('jupyterlite_ai');
@@ -952,6 +955,8 @@ const inputToolbarFactory: JupyterFrontEndPlugin<IInputToolbarRegistryFactory> =
       const clearButton = clearItem(trans);
       const toolSelectButton = createToolSelectItem(
         toolRegistry,
+        settingsModel,
+        providerRegistry,
         settingsModel.config.toolsEnabled,
         trans
       );

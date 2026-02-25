@@ -66,6 +66,79 @@
           },
           "customSettings": {
             "type": "object",
+            "description": "Provider-specific advanced settings. Available sections depend on provider capabilities.",
+            "properties": {
+              "webSearch": {
+                "type": "object",
+                "description": "Provider-hosted web search settings.",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Enable provider-hosted web search for this provider."
+                  },
+                  "searchContextSize": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "description": "Web search context size for providers that support it."
+                  },
+                  "externalWebAccess": {
+                    "type": "boolean",
+                    "description": "Use external web access for providers that support it."
+                  },
+                  "allowedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Allowed domains for web search."
+                  },
+                  "blockedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Blocked domains for providers that support it."
+                  },
+                  "maxUses": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum number of web searches."
+                  }
+                },
+                "additionalProperties": true
+              },
+              "webFetch": {
+                "type": "object",
+                "description": "Provider-hosted web fetch settings.",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "Enable provider-hosted web fetch for this provider."
+                  },
+                  "maxUses": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum number of web fetches."
+                  },
+                  "allowedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Allowed domains for web fetch."
+                  },
+                  "blockedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Blocked domains for web fetch."
+                  },
+                  "maxContentTokens": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum fetched content tokens."
+                  },
+                  "citationsEnabled": {
+                    "type": "boolean",
+                    "description": "Enable citations in Anthropic web fetch results."
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
             "additionalProperties": true
           }
         },

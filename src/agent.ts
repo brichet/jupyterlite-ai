@@ -7,6 +7,8 @@ import {
   type StreamTextResult,
   type Tool,
   type ToolApprovalRequestOutput,
+  type TypedToolError,
+  type TypedToolOutputDenied,
   type TypedToolResult
 } from 'ai';
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
@@ -15,7 +17,11 @@ import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 
 import { AISettingsModel } from './models/settings-model';
 import { createModel } from './providers/models';
-import type { IProviderRegistry } from './tokens';
+import {
+  createProviderTools,
+  type IProviderCustomSettings
+} from './providers/provider-tools';
+import type { IProviderInfo, IProviderRegistry } from './tokens';
 import {
   ISkillRegistry,
   ISkillSummary,
@@ -711,27 +717,39 @@ export class AgentManager {
 
     const model = await this._createModel();
 
-    const shouldUseTools = !!(
-      config.toolsEnabled &&
-      this._selectedToolNames.length > 0 &&
-      this._toolRegistry &&
-      Object.keys(this._toolRegistry.tools).length > 0 &&
-      this._supportsToolCalling()
+    const supportsToolCalling = this._supportsToolCalling();
+    const canUseTools = config.toolsEnabled && supportsToolCalling;
+    const hasFunctionToolRegistry = !!(
+      this._toolRegistry && Object.keys(this._toolRegistry.tools).length > 0
     );
-
-    const tools = shouldUseTools
-      ? { ...this.selectedAgentTools, ...this._mcpTools }
-      : this._mcpTools;
+    const selectedFunctionTools =
+      canUseTools && hasFunctionToolRegistry ? this.selectedAgentTools : {};
+    const functionTools = canUseTools
+      ? { ...selectedFunctionTools, ...this._mcpTools }
+      : {};
 
     const activeProviderConfig = this._settingsModel.getProvider(
       this._activeProvider
     );
+    const activeProviderInfo =
+      activeProviderConfig && this._providerRegistry
+        ? this._providerRegistry.getProviderInfo(activeProviderConfig.provider)
+        : null;
 
     const temperature =
       activeProviderConfig?.parameters?.temperature ?? DEFAULT_TEMPERATURE;
     const maxTokens = activeProviderConfig?.parameters?.maxOutputTokens;
     const maxTurns =
       activeProviderConfig?.parameters?.maxTurns ?? DEFAULT_MAX_TURNS;
+
+    const tools = this._buildRuntimeTools({
+      providerInfo: activeProviderInfo,
+      customSettings: activeProviderConfig?.customSettings,
+      functionTools,
+      includeProviderTools: canUseTools
+    });
+
+    const shouldUseTools = canUseTools && Object.keys(tools).length > 0;
 
     this._agentConfig = {
       model,
@@ -741,6 +759,29 @@ export class AgentManager {
       maxTurns,
       baseSystemPrompt: config.systemPrompt || '',
       shouldUseTools
+    };
+  }
+
+  /**
+   * Build the runtime tool map used by the agent.
+   */
+  private _buildRuntimeTools(options: {
+    providerInfo?: IProviderInfo | null;
+    customSettings?: IProviderCustomSettings;
+    functionTools: ToolMap;
+    includeProviderTools: boolean;
+  }): ToolMap {
+    const providerTools = options.includeProviderTools
+      ? createProviderTools({
+          providerInfo: options.providerInfo,
+          customSettings: options.customSettings,
+          hasFunctionTools: Object.keys(options.functionTools).length > 0
+        })
+      : {};
+
+    return {
+      ...providerTools,
+      ...options.functionTools
     };
   }
 
@@ -764,7 +805,7 @@ export class AgentManager {
     } = this._agentConfig;
 
     const baseInstructions = shouldUseTools
-      ? this._getEnhancedSystemPrompt(baseSystemPrompt)
+      ? this._getEnhancedSystemPrompt(baseSystemPrompt, tools)
       : baseSystemPrompt || 'You are a helpful assistant.';
     const richOutputWorkflowInstruction = shouldUseTools
       ? '- When the user asks for visual or rich outputs, prefer running code/commands that produce those outputs and describe that they will be rendered in chat.'
@@ -845,6 +886,14 @@ ${richOutputWorkflowInstruction}`;
           this._handleToolResult(part);
           break;
 
+        case 'tool-error':
+          this._handleToolError(part);
+          break;
+
+        case 'tool-output-denied':
+          this._handleToolOutputDenied(part);
+          break;
+
         case 'tool-approval-request':
           // Complete current message before approval
           if (currentMessageId && fullResponse) {
@@ -896,6 +945,43 @@ ${richOutputWorkflowInstruction}`;
         toolName: part.toolName,
         outputData: part.output,
         isError
+      }
+    });
+  }
+
+  /**
+   * Handles tool-error stream parts.
+   */
+  private _handleToolError(part: TypedToolError<ToolMap>): void {
+    const output =
+      typeof part.error === 'string'
+        ? part.error
+        : part.error instanceof Error
+          ? part.error.message
+          : JSON.stringify(part.error, null, 2);
+
+    this._agentEvent.emit({
+      type: 'tool_call_complete',
+      data: {
+        callId: part.toolCallId,
+        toolName: part.toolName,
+        outputData: output,
+        isError: true
+      }
+    });
+  }
+
+  /**
+   * Handles tool-output-denied stream parts.
+   */
+  private _handleToolOutputDenied(part: TypedToolOutputDenied<ToolMap>): void {
+    this._agentEvent.emit({
+      type: 'tool_call_complete',
+      data: {
+        callId: part.toolCallId,
+        toolName: part.toolName,
+        outputData: 'Tool output was denied.',
+        isError: true
       }
     });
   }
@@ -1040,15 +1126,17 @@ ${richOutputWorkflowInstruction}`;
    * @param baseSystemPrompt The base system prompt from settings
    * @returns The enhanced system prompt with dynamic additions
    */
-  private _getEnhancedSystemPrompt(baseSystemPrompt: string): string {
-    if (this._skills.length === 0) {
-      return baseSystemPrompt;
-    }
+  private _getEnhancedSystemPrompt(
+    baseSystemPrompt: string,
+    tools: ToolMap
+  ): string {
+    let prompt = baseSystemPrompt;
 
-    const lines = this._skills.map(
-      skill => `- ${skill.name}: ${skill.description}`
-    );
-    const skillsPrompt = `
+    if (this._skills.length > 0) {
+      const lines = this._skills.map(
+        skill => `- ${skill.name}: ${skill.description}`
+      );
+      const skillsPrompt = `
 
 AGENT SKILLS:
 Skills are provided via the skills registry and accessed through tools (not commands).
@@ -1060,8 +1148,30 @@ If the load_skill result includes a non-empty "resources" array, those are bundl
 AVAILABLE SKILLS (preloaded snapshot):
 ${lines.join('\n')}
 `;
+      prompt += skillsPrompt;
+    }
 
-    return baseSystemPrompt + skillsPrompt;
+    const toolNames = new Set(Object.keys(tools));
+    const hasBrowserFetch = toolNames.has('browser_fetch');
+    const hasWebFetch = toolNames.has('web_fetch');
+    const hasWebSearch = toolNames.has('web_search');
+
+    if (hasBrowserFetch || hasWebFetch || hasWebSearch) {
+      const webRetrievalPrompt = `
+
+WEB RETRIEVAL POLICY:
+- If the user asks about a specific URL and browser_fetch is available, call browser_fetch first for that URL.
+- If browser_fetch fails due to CORS/network/access, try web_fetch (if available) for that same URL.
+- If web_fetch fails with access/policy errors (for example: url_not_accessible or url_not_allowed) and browser_fetch is available, you MUST call browser_fetch for that same URL before searching.
+- If either fetch method fails with temporary access/network issues (for example: network_or_cors), try the other fetch method if available before searching.
+- Only fall back to web_search after both fetch methods fail or are unavailable.
+- If the user explicitly asks to inspect one exact URL, do not skip directly to search unless both fetch methods fail or are unavailable.
+- In your final response, state which retrieval method succeeded (browser_fetch, web_fetch, or web_search) and mention relevant limitations.
+`;
+      prompt += webRetrievalPrompt;
+    }
+
+    return prompt;
   }
 
   /**
