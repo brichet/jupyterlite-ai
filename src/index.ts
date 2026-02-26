@@ -16,7 +16,8 @@ import {
   IChatTracker,
   IInputToolbarRegistryFactory,
   InputToolbarRegistry,
-  MultiChatPanel
+  MultiChatPanel,
+  IChatModel
 } from '@jupyter/chat';
 
 import {
@@ -342,6 +343,10 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
     }
     modelHandler.activeCellManager = activeCellManager;
 
+    // Creating the tracker for the chat widgets
+    const namespace = 'ai-chat';
+    const tracker = new WidgetTracker<MainAreaChat | ChatWidget>({ namespace });
+
     // Create chat panel with drag/drop functionality
     const chatPanel = new MultiChatPanel({
       rmRegistry,
@@ -406,12 +411,15 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
       // Add the widget to the tracker.
       tracker.add(widget);
 
+      function saveTracker() {
+        tracker.save(widget);
+      }
+
       // Update the tracker if the model name changed.
-      model.nameChanged.connect(() => tracker.save(widget));
+      model.nameChanged.connect(saveTracker);
+
       // Update the tracker if the active provider changed.
-      model.agentManager.activeProviderChanged.connect(() =>
-        tracker.save(widget)
-      );
+      model.agentManager.activeProviderChanged.connect(saveTracker);
 
       // Update the token usage widget.
       tokenUsageWidget?.dispose();
@@ -422,13 +430,14 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
         initialTokenUsage: model.agentManager.tokenUsage,
         translator: trans
       });
-      chatPanel.toolbar.insertBefore(
+      chatPanel.current?.toolbar.insertBefore(
         'markRead',
         'token-usage',
         tokenUsageWidget
       );
 
-      model.writersChanged?.connect((_, writers) => {
+      // Listen for writers change to display the stop button.
+      function writersChanged(_: IChatModel, writers: IChatModel.IWriter[]) {
         // Check if AI is currently writing (streaming)
         const aiWriting = writers.some(
           writer => writer.user.username === 'ai-assistant'
@@ -441,7 +450,9 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
           widget.inputToolbarRegistry?.hide('stop');
           widget.inputToolbarRegistry?.show('send');
         }
-      });
+      }
+
+      model.writersChanged?.connect(writersChanged);
 
       // Associate an approval buttons object to the chat.
       const approvalButton = new ApprovalButtons({
@@ -455,6 +466,10 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
       });
 
       widget.disposed.connect(() => {
+        model.nameChanged.disconnect(saveTracker);
+        model.agentManager.activeProviderChanged.disconnect(saveTracker);
+        model.writersChanged?.disconnect(writersChanged);
+
         // Dispose of the approval buttons widget when the chat is disposed.
         approvalButton.dispose();
         outputAreaCompat.dispose();
@@ -462,10 +477,6 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
     });
 
     app.shell.add(chatPanel, 'left', { rank: 1000 });
-
-    // Creating the tracker for the document
-    const namespace = 'ai-chat';
-    const tracker = new WidgetTracker<MainAreaChat | ChatWidget>({ namespace });
 
     if (restorer) {
       restorer.add(chatPanel, chatPanel.id);
