@@ -70,7 +70,7 @@ import { ProviderRegistry } from './providers/provider-registry';
 
 import { ApprovalButtons } from './approval-buttons';
 
-import { ChatModelHandler } from './chat-model-registry';
+import { ChatModelHandler } from './chat-model-handler';
 
 import {
   CommandIds,

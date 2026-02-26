@@ -347,7 +347,7 @@ export const IAgentManagerFactory = new Token<AgentManagerFactory>(
 export interface IChatModelHandler {
   createModel(
     name: string,
-    activeProvider?: string,
+    activeProvider: string,
     tokenUsage?: ITokenUsage
   ): AIChatModel;
   activeCellManager: ActiveCellManager | undefined;
