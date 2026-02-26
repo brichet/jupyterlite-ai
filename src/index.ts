@@ -23,6 +23,7 @@ import {
 import {
   ICommandPalette,
   IThemeManager,
+  showErrorMessage,
   WidgetTracker
 } from '@jupyterlab/apputils';
 
@@ -358,6 +359,8 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
         if (!provider) {
           provider = settingsModel.getDefaultProvider()?.id;
           if (!provider) {
+            showErrorMessage('Error creating chat', 'Please set up a provider');
+            app.commands.execute('@jupyterlite/ai:open-settings');
             return {};
           }
         }
