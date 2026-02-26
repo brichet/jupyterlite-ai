@@ -607,12 +607,19 @@ function registerCommands(
       // Add the widget to the tracker.
       tracker.add(widget);
 
+      function saveTracker() {
+        tracker.save(widget);
+      }
+
       // Update the tracker if the model name changed.
-      model.nameChanged.connect(() => tracker.save(widget));
+      model.nameChanged.connect(saveTracker);
       // Update the tracker if the active provider changed.
-      model.agentManager.activeProviderChanged.connect(() =>
-        tracker.save(widget)
-      );
+      model.agentManager.activeProviderChanged.connect(saveTracker);
+
+      widget.disposed.connect(() => {
+        model.nameChanged.disconnect(saveTracker);
+        model.agentManager.activeProviderChanged.disconnect(saveTracker);
+      });
     };
 
     commands.addCommand(CommandIds.openChat, {
