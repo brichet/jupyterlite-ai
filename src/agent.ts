@@ -555,6 +555,7 @@ export class AgentManager {
 
     // Clear history and token usage
     this._history = [];
+    this._toSanitizeIndex = 0;
     this._tokenUsage = { inputTokens: 0, outputTokens: 0 };
     this._tokenUsageChanged.emit(this._tokenUsage);
   }
@@ -670,6 +671,8 @@ export class AgentManager {
           type: 'error',
           data: { error: error as Error }
         });
+        // Ensure sanitizing all messages, in case there is an issue with the index.
+        this._toSanitizeIndex = 0;
       }
       // After an error (including AbortError), sanitize the history
       // to remove any trailing assistant messages without tool results
@@ -1216,86 +1219,94 @@ WEB RETRIEVAL POLICY:
       return;
     }
 
+    const historyToSanitize = this._history.slice(this._toSanitizeIndex);
     const newHistory: ModelMessage[] = [];
-    for (let i = 0; i < this._history.length; i++) {
-      const msg = this._history[i];
-
+    for (let i = 0; i < historyToSanitize.length; i++) {
+      const msg = historyToSanitize[i];
       if (msg.role === 'assistant') {
-        const toolCallIds = this._getToolCallIds(msg);
-        if (toolCallIds.length > 0) {
-          // Find if there's a following tool message with results for these calls
-          const nextMsg = this._history[i + 1];
-          if (
-            nextMsg &&
-            nextMsg.role === 'tool' &&
-            this._matchesAllToolCalls(nextMsg, toolCallIds)
-          ) {
-            newHistory.push(msg);
-          } else {
-            // Message has unmatched tool calls drop it and everything after it
-            break;
-          }
-        } else {
+        // The assistant message is valid if:
+        // 1. there is no tool call
+        // 2. every tool call has a corresponding tool-result message following
+        const toolCallIds = Private.getToolCallIds(msg);
+
+        // For each tool call ids, check if there is a corresponding tool-result
+        const toolResults = toolCallIds.map(toolCallId => {
+          // only get the tool messages following the assistant message
+          const followingHistory = historyToSanitize.slice(i + 1);
+          const nextNotTool = followingHistory.findIndex(
+            msg => msg.role !== 'tool'
+          );
+
+          // Return the tool message containing the tool result for this call ID.
+          // Return undefined if there is no corresponding tool result.
+          return followingHistory
+            .slice(0, nextNotTool !== -1 ? nextNotTool : undefined)
+            .find(
+              message =>
+                message.role === 'tool' &&
+                Array.isArray(message.content) &&
+                message.content.find(
+                  content =>
+                    content.type === 'tool-result' &&
+                    content.toolCallId === toolCallId
+                )
+            );
+        });
+
+        // Only keep the assistant message if each tool call id has a corresponding tool
+        // result message.
+        if (toolResults.every(result => result !== undefined)) {
           newHistory.push(msg);
         }
       } else if (msg.role === 'tool') {
-        // Tool messages are valid if they were preceded by a valid assistant message
-        newHistory.push(msg);
+        // Tool messages are valid if:
+        // 1. All preceding messages are tool messages (or this is the first message)
+        // 2. The first non-tool message before this is an assistant message
+        // 3. The assistant message contains all toolCallIds from this tool message
+        const toolCallIds = Private.getToolCallIds(msg);
+        const approvalIds = Private.getApprovalIds(msg);
+
+        // Find the preceding non-tool message by scanning backwards
+        let precedingAssistantMessage: ModelMessage | null = null;
+        for (let j = newHistory.length - 1; j >= 0; j--) {
+          if (newHistory[j].role !== 'tool') {
+            precedingAssistantMessage = newHistory[j];
+            break;
+          }
+        }
+
+        // The preceding non-tool message must be assistant with matching toolCallIds
+        // and matching approvalId
+        const isValid =
+          precedingAssistantMessage &&
+          precedingAssistantMessage.role === 'assistant' &&
+          toolCallIds.every(toolCallId =>
+            Private.hasToolCallIdInMessage(
+              precedingAssistantMessage,
+              toolCallId
+            )
+          ) &&
+          approvalIds.every(approvalId =>
+            Private.hasApprovalIdInMessage(
+              precedingAssistantMessage,
+              approvalId
+            )
+          );
+
+        if (isValid) {
+          newHistory.push(msg);
+        }
       } else {
         newHistory.push(msg);
       }
     }
 
-    this._history = newHistory;
-  }
-
-  /**
-   * Extracts tool call IDs from a message
-   */
-  private _getToolCallIds(message: ModelMessage): string[] {
-    const ids: string[] = [];
-
-    // Check content array for tool-call parts
-    if (Array.isArray(message.content)) {
-      for (const part of message.content) {
-        if (
-          typeof part === 'object' &&
-          part !== null &&
-          'type' in part &&
-          part.type === 'tool-call'
-        ) {
-          ids.push(part.toolCallId);
-        }
-      }
-    }
-
-    return ids;
-  }
-
-  /**
-   * Checks if a tool message contains results for all specified tool call IDs
-   */
-  private _matchesAllToolCalls(
-    message: ModelMessage,
-    callIds: string[]
-  ): boolean {
-    if (message.role !== 'tool' || !Array.isArray(message.content)) {
-      return false;
-    }
-
-    const resultIds = new Set<string>();
-    for (const part of message.content) {
-      if (
-        typeof part === 'object' &&
-        part !== null &&
-        'type' in part &&
-        part.type === 'tool-result'
-      ) {
-        resultIds.add(part.toolCallId);
-      }
-    }
-
-    return callIds.every(id => resultIds.has(id));
+    this._history.splice(
+      this._toSanitizeIndex,
+      historyToSanitize.length,
+      ...newHistory
+    );
+    this._toSanitizeIndex = this._history.length;
   }
 
   // Private attributes
@@ -1322,6 +1333,7 @@ WEB RETRIEVAL POLICY:
     string,
     { resolve: (approved: boolean, reason?: string) => void }
   > = new Map();
+  private _toSanitizeIndex: number = 0;
 }
 
 namespace Private {
@@ -1341,6 +1353,85 @@ namespace Private {
       }
     }
     return sanitized;
+  };
+
+  /**
+   * Extracts tool call IDs from a message
+   */
+  export const getToolCallIds = (message: ModelMessage): string[] => {
+    const ids: string[] = [];
+
+    // Check content array for tool-call parts
+    if (Array.isArray(message.content)) {
+      for (const part of message.content) {
+        if (typeof part === 'object' && part !== null && 'type' in part) {
+          if (
+            (message.role === 'assistant' && part.type === 'tool-call') ||
+            (message.role === 'tool' && part.type === 'tool-result')
+          ) {
+            ids.push(part.toolCallId);
+          }
+        }
+      }
+    }
+
+    return ids;
+  };
+
+  /**
+   * Checks if a message contains a specific toolCallId (for tool-call in assistant messages)
+   */
+  export const hasToolCallIdInMessage = (
+    message: ModelMessage,
+    toolCallId: string
+  ): boolean => {
+    if (message.role !== 'assistant' || !Array.isArray(message.content)) {
+      return false;
+    }
+
+    return message.content.some(
+      part => part.type === 'tool-call' && part.toolCallId === toolCallId
+    );
+  };
+
+  /**
+   * Extracts approval IDs from a tool message
+   */
+  export const getApprovalIds = (message: ModelMessage): string[] => {
+    if (message.role !== 'tool') {
+      return [];
+    }
+    const ids: string[] = [];
+
+    // Check content array for tool-call parts
+    if (Array.isArray(message.content)) {
+      for (const part of message.content) {
+        if (typeof part === 'object' && part !== null && 'type' in part) {
+          if (part.type === 'tool-approval-response') {
+            ids.push(part.approvalId);
+          }
+        }
+      }
+    }
+
+    return ids;
+  };
+
+  /**
+   * Checks if a message contains a specific toolCallId (for tool-call in assistant messages)
+   */
+  export const hasApprovalIdInMessage = (
+    message: ModelMessage,
+    approvalId: string
+  ): boolean => {
+    if (message.role !== 'assistant' || !Array.isArray(message.content)) {
+      return false;
+    }
+
+    return message.content.some(
+      part =>
+        part.type === 'tool-approval-request' && part.approvalId === approvalId
+    );
   };
 
   /**
