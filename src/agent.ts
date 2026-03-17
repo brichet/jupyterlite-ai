@@ -1,5 +1,6 @@
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
+import { PromiseDelegate } from '@lumino/coreutils';
 import { ISignal, Signal } from '@lumino/signaling';
 import {
   ToolLoopAgent,
@@ -10,7 +11,8 @@ import {
   type ToolApprovalRequestOutput,
   type TypedToolError,
   type TypedToolOutputDenied,
-  type TypedToolResult
+  type TypedToolResult,
+  type AssistantModelMessage
 } from 'ai';
 import { ISecretsManager } from 'jupyter-secrets-manager';
 
@@ -323,6 +325,7 @@ export class AgentManager implements IAgentManager {
     this._skills = [];
     this._agentConfig = null;
     this._renderMimeRegistry = options.renderMimeRegistry;
+    this._streaming.resolve();
 
     this.activeProvider =
       options.activeProvider ?? this._settingsModel.config.defaultProvider;
@@ -451,32 +454,34 @@ export class AgentManager implements IAgentManager {
   /**
    * Clears conversation history and resets agent state.
    */
-  clearHistory(): void {
+  async clearHistory(): Promise<void> {
     // Stop any ongoing streaming
-    this.stopStreaming();
+    this.stopStreaming('Chat cleared');
 
-    // Reject any pending approvals
-    for (const [approvalId, pending] of this._pendingApprovals) {
-      pending.resolve(false, 'Chat cleared');
-      this._agentEvent.emit({
-        type: 'tool_approval_resolved',
-        data: { approvalId, approved: false }
-      });
-    }
-    this._pendingApprovals.clear();
+    await this._streaming.promise;
 
     // Clear history and token usage
     this._history = [];
-    this._toSanitizeIndex = 0;
     this._tokenUsage = { inputTokens: 0, outputTokens: 0 };
     this._tokenUsageChanged.emit(this._tokenUsage);
   }
 
   /**
    * Stops the current streaming response by aborting the request.
+   * Resolve any pending approval.
    */
-  stopStreaming(): void {
+  stopStreaming(reason?: string): void {
     this._controller?.abort();
+
+    // Reject any pending approvals
+    for (const [approvalId, pending] of this._pendingApprovals) {
+      pending.resolve(false, reason ?? 'Stream ended by user');
+      this._agentEvent.emit({
+        type: 'tool_approval_resolved',
+        data: { approvalId, approved: false }
+      });
+    }
+    this._pendingApprovals.clear();
   }
 
   /**
@@ -519,8 +524,9 @@ export class AgentManager implements IAgentManager {
    * @param message The user message to respond to (may include processed attachment content)
    */
   async generateResponse(message: string): Promise<void> {
+    this._streaming = new PromiseDelegate();
     this._controller = new AbortController();
-
+    const responseHistory: ModelMessage[] = [];
     try {
       // Ensure we have an agent
       if (!this._agent) {
@@ -532,7 +538,7 @@ export class AgentManager implements IAgentManager {
       }
 
       // Add user message to history
-      this._history.push({
+      responseHistory.push({
         role: 'user',
         content: message
       });
@@ -540,7 +546,7 @@ export class AgentManager implements IAgentManager {
       let continueLoop = true;
       while (continueLoop) {
         const result = await this._agent.stream({
-          messages: this._history,
+          messages: [...this._history, ...responseHistory],
           abortSignal: this._controller.signal
         });
 
@@ -552,15 +558,13 @@ export class AgentManager implements IAgentManager {
 
         // Add response messages to history
         if (responseMessages.messages?.length) {
-          this._history.push(
-            ...Private.sanitizeModelMessages(responseMessages.messages)
-          );
+          responseHistory.push(...responseMessages.messages);
         }
 
         // Add approval response if processed
         if (streamResult.approvalResponse) {
           // Check if the last message is a tool message we can append to
-          const lastMsg = this._history[this._history.length - 1];
+          const lastMsg = responseHistory[responseHistory.length - 1];
           if (
             lastMsg &&
             lastMsg.role === 'tool' &&
@@ -571,26 +575,25 @@ export class AgentManager implements IAgentManager {
             toolContent.push(...streamResult.approvalResponse.content);
           } else {
             // Add as separate message
-            this._history.push(streamResult.approvalResponse);
+            responseHistory.push(streamResult.approvalResponse);
           }
         }
 
         continueLoop = streamResult.approvalProcessed;
       }
+
+      // Add the messages to the history only if the response ended without error.
+      this._history.push(...Private.sanitizeModelMessages(responseHistory));
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         this._agentEvent.emit({
           type: 'error',
           data: { error: error as Error }
         });
-        // Ensure sanitizing all messages, in case there is an issue with the index.
-        this._toSanitizeIndex = 0;
       }
-      // After an error (including AbortError), sanitize the history
-      // to remove any trailing assistant messages without tool results
-      this._sanitizeHistory();
     } finally {
       this._controller = null;
+      this._streaming.resolve();
     }
   }
 
@@ -1123,104 +1126,6 @@ WEB RETRIEVAL POLICY:
     return `Supported MIME types in this session: ${safeMimeTypes.join(', ')}`;
   }
 
-  /**
-   * Sanitizes history to ensure it's in a valid state in case of abort or error.
-   */
-  private _sanitizeHistory(): void {
-    if (this._history.length === 0) {
-      return;
-    }
-
-    const historyToSanitize = this._history.slice(this._toSanitizeIndex);
-    const newHistory: ModelMessage[] = [];
-    for (let i = 0; i < historyToSanitize.length; i++) {
-      const msg = historyToSanitize[i];
-      if (msg.role === 'assistant') {
-        // The assistant message is valid if:
-        // 1. there is no tool call
-        // 2. every tool call has a corresponding tool-result message following
-        const toolCallIds = Private.getToolCallIds(msg);
-
-        // For each tool call ids, check if there is a corresponding tool-result
-        const toolResults = toolCallIds.map(toolCallId => {
-          // only get the tool messages following the assistant message
-          const followingHistory = historyToSanitize.slice(i + 1);
-          const nextNotTool = followingHistory.findIndex(
-            msg => msg.role !== 'tool'
-          );
-
-          // Return the tool message containing the tool result for this call ID.
-          // Return undefined if there is no corresponding tool result.
-          return followingHistory
-            .slice(0, nextNotTool !== -1 ? nextNotTool : undefined)
-            .find(
-              message =>
-                message.role === 'tool' &&
-                Array.isArray(message.content) &&
-                message.content.find(
-                  content =>
-                    content.type === 'tool-result' &&
-                    content.toolCallId === toolCallId
-                )
-            );
-        });
-
-        // Only keep the assistant message if each tool call id has a corresponding tool
-        // result message.
-        if (toolResults.every(result => result !== undefined)) {
-          newHistory.push(msg);
-        }
-      } else if (msg.role === 'tool') {
-        // Tool messages are valid if:
-        // 1. All preceding messages are tool messages (or this is the first message)
-        // 2. The first non-tool message before this is an assistant message
-        // 3. The assistant message contains all toolCallIds from this tool message
-        const toolCallIds = Private.getToolCallIds(msg);
-        const approvalIds = Private.getApprovalIds(msg);
-
-        // Find the preceding non-tool message by scanning backwards
-        let precedingAssistantMessage: ModelMessage | null = null;
-        for (let j = newHistory.length - 1; j >= 0; j--) {
-          if (newHistory[j].role !== 'tool') {
-            precedingAssistantMessage = newHistory[j];
-            break;
-          }
-        }
-
-        // The preceding non-tool message must be assistant with matching toolCallIds
-        // and matching approvalId
-        const isValid =
-          precedingAssistantMessage &&
-          precedingAssistantMessage.role === 'assistant' &&
-          toolCallIds.every(toolCallId =>
-            Private.hasToolCallIdInMessage(
-              precedingAssistantMessage,
-              toolCallId
-            )
-          ) &&
-          approvalIds.every(approvalId =>
-            Private.hasApprovalIdInMessage(
-              precedingAssistantMessage,
-              approvalId
-            )
-          );
-
-        if (isValid) {
-          newHistory.push(msg);
-        }
-      } else {
-        newHistory.push(msg);
-      }
-    }
-
-    this._history.splice(
-      this._toSanitizeIndex,
-      historyToSanitize.length,
-      ...newHistory
-    );
-    this._toSanitizeIndex = this._history.length;
-  }
-
   // Private attributes
   private _settingsModel: IAISettingsModel;
   private _toolRegistry?: IToolRegistry;
@@ -1245,105 +1150,123 @@ WEB RETRIEVAL POLICY:
     string,
     { resolve: (approved: boolean, reason?: string) => void }
   > = new Map();
-  private _toSanitizeIndex: number = 0;
+  private _streaming: PromiseDelegate<void> = new PromiseDelegate();
 }
 
 namespace Private {
   /**
-   * Keep only serializable messages by doing a JSON round-trip.
-   * Messages that cannot be serialized are dropped.
+   * Sanitize the messages before adding them to the history.
+   *
+   * 1- Make sure the message sequence is not altered:
+   *   - tool-call messages should have a corresponding tool-result (and vice-versa)
+   *   - tool-approval-request should have a tool-approval-response (and vice-versa)
+   *
+   * 2- Keep only serializable messages by doing a JSON round-trip.
+   *    Messages that cannot be serialized are dropped.
    */
   export const sanitizeModelMessages = (
     messages: ModelMessage[]
   ): ModelMessage[] => {
     const sanitized: ModelMessage[] = [];
     for (const message of messages) {
-      try {
-        sanitized.push(JSON.parse(JSON.stringify(message)));
-      } catch {
-        // Drop messages that cannot be serialized
-      }
-    }
-    return sanitized;
-  };
-
-  /**
-   * Extracts tool call IDs from a message
-   */
-  export const getToolCallIds = (message: ModelMessage): string[] => {
-    const ids: string[] = [];
-
-    // Check content array for tool-call parts
-    if (Array.isArray(message.content)) {
-      for (const part of message.content) {
-        if (typeof part === 'object' && part !== null && 'type' in part) {
-          if (
-            (message.role === 'assistant' && part.type === 'tool-call') ||
-            (message.role === 'tool' && part.type === 'tool-result')
-          ) {
-            ids.push(part.toolCallId);
+      if (message.role === 'assistant') {
+        let newMessage: AssistantModelMessage | undefined;
+        if (!Array.isArray(message.content)) {
+          newMessage = message;
+        } else {
+          // Remove assistant message content without a required response.
+          const newContent: typeof message.content = [];
+          for (const assistantContent of message.content) {
+            let isContentValid = true;
+            if (assistantContent.type === 'tool-call') {
+              const toolCallId = assistantContent.toolCallId;
+              isContentValid = !!messages.find(
+                msg =>
+                  msg.role === 'tool' &&
+                  Array.isArray(msg.content) &&
+                  msg.content.find(
+                    content =>
+                      content.type === 'tool-result' &&
+                      content.toolCallId === toolCallId
+                  )
+              );
+            } else if (assistantContent.type === 'tool-approval-request') {
+              const approvalId = assistantContent.approvalId;
+              isContentValid = !!messages.find(
+                msg =>
+                  msg.role === 'tool' &&
+                  Array.isArray(msg.content) &&
+                  msg.content.find(
+                    content =>
+                      content.type === 'tool-approval-response' &&
+                      content.approvalId === approvalId
+                  )
+              );
+            }
+            if (isContentValid) {
+              newContent.push(assistantContent);
+            }
+          }
+          if (newContent.length) {
+            newMessage = { ...message, content: newContent };
           }
         }
-      }
-    }
-
-    return ids;
-  };
-
-  /**
-   * Checks if a message contains a specific toolCallId (for tool-call in assistant messages)
-   */
-  export const hasToolCallIdInMessage = (
-    message: ModelMessage,
-    toolCallId: string
-  ): boolean => {
-    if (message.role !== 'assistant' || !Array.isArray(message.content)) {
-      return false;
-    }
-
-    return message.content.some(
-      part => part.type === 'tool-call' && part.toolCallId === toolCallId
-    );
-  };
-
-  /**
-   * Extracts approval IDs from a tool message
-   */
-  export const getApprovalIds = (message: ModelMessage): string[] => {
-    if (message.role !== 'tool') {
-      return [];
-    }
-    const ids: string[] = [];
-
-    // Check content array for tool-call parts
-    if (Array.isArray(message.content)) {
-      for (const part of message.content) {
-        if (typeof part === 'object' && part !== null && 'type' in part) {
-          if (part.type === 'tool-approval-response') {
-            ids.push(part.approvalId);
+        if (newMessage) {
+          try {
+            sanitized.push(JSON.parse(JSON.stringify(newMessage)));
+          } catch {
+            // Drop messages that cannot be serialized
           }
         }
+      } else if (message.role === 'tool') {
+        // Remove tool message content without request.
+        const newContent: typeof message.content = [];
+        for (const toolContent of message.content) {
+          let isContentValid = true;
+          if (toolContent.type === 'tool-result') {
+            const toolCallId = toolContent.toolCallId;
+            isContentValid = !!sanitized.find(
+              msg =>
+                msg.role === 'assistant' &&
+                Array.isArray(msg.content) &&
+                msg.content.find(
+                  content =>
+                    content.type === 'tool-call' &&
+                    content.toolCallId === toolCallId
+                )
+            );
+          } else if (toolContent.type === 'tool-approval-response') {
+            const approvalId = toolContent.approvalId;
+            isContentValid = !!sanitized.find(
+              msg =>
+                msg.role === 'assistant' &&
+                Array.isArray(msg.content) &&
+                msg.content.find(
+                  content =>
+                    content.type === 'tool-approval-request' &&
+                    content.approvalId === approvalId
+                )
+            );
+          }
+          if (isContentValid) {
+            newContent.push(toolContent);
+          }
+        }
+        if (newContent.length) {
+          try {
+            sanitized.push(
+              JSON.parse(JSON.stringify({ ...message, content: newContent }))
+            );
+          } catch {
+            // Drop messages that cannot be serialized
+          }
+        }
+      } else {
+        // Message is a system or user message.
+        sanitized.push(message);
       }
     }
-
-    return ids;
-  };
-
-  /**
-   * Checks if a message contains a specific toolCallId (for tool-call in assistant messages)
-   */
-  export const hasApprovalIdInMessage = (
-    message: ModelMessage,
-    approvalId: string
-  ): boolean => {
-    if (message.role !== 'assistant' || !Array.isArray(message.content)) {
-      return false;
-    }
-
-    return message.content.some(
-      part =>
-        part.type === 'tool-approval-request' && part.approvalId === approvalId
-    );
+    return sanitized.length === messages.length ? sanitized : [];
   };
 
   /**
