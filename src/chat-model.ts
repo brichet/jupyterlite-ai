@@ -116,7 +116,7 @@ export class AIChatModel extends AbstractChatModel {
     // Listen for settings changes to update chat behavior
     this._settingsModel.stateChanged.connect(this._onSettingsChanged, this);
 
-    this._autoSaveDebouncer = new Debouncer(this.save, 3000);
+    this._autosaveDebouncer = new Debouncer(this.save, 3000);
   }
 
   /**
@@ -129,7 +129,7 @@ export class AIChatModel extends AbstractChatModel {
     super.name = value;
     this._nameChanged.emit(value);
     if (!this.messages.length) {
-      const directory = '.chats-backup';
+      const directory = this._settingsModel.config.chatBackupDirectory;
       const filepath = PathExt.join(directory, `${this.name}.json`);
       this.restore(filepath, true);
     }
@@ -139,20 +139,20 @@ export class AIChatModel extends AbstractChatModel {
   /**
    * Whether to save the chat automatically.
    */
-  get autoSave(): boolean {
-    return this._autoSave;
+  get autosave(): boolean {
+    return this._autosave;
   }
-  set autoSave(value: boolean) {
-    this._autoSave = value;
+  set autosave(value: boolean) {
+    this._autosave = value;
     if (value) {
       this.messagesUpdated.connect(
-        this._autoSaveDebouncer.invoke,
-        this._autoSaveDebouncer
+        this._autosaveDebouncer.invoke,
+        this._autosaveDebouncer
       );
     } else {
       this.messagesUpdated.disconnect(
-        this._autoSaveDebouncer.invoke,
-        this._autoSaveDebouncer
+        this._autosaveDebouncer.invoke,
+        this._autosaveDebouncer
       );
     }
   }
@@ -197,8 +197,8 @@ export class AIChatModel extends AbstractChatModel {
    */
   dispose(): void {
     this.messagesUpdated.disconnect(
-      this._autoSaveDebouncer.invoke,
-      this._autoSaveDebouncer
+      this._autosaveDebouncer.invoke,
+      this._autosaveDebouncer
     );
     super.dispose();
   }
@@ -325,7 +325,11 @@ export class AIChatModel extends AbstractChatModel {
    */
   save = async (): Promise<void> => {
     if (this._contentsManager) {
-      return Private.saveChat(this._contentsManager, this);
+      return Private.saveChat(
+        this,
+        this._contentsManager,
+        this._settingsModel.config.chatBackupDirectory
+      );
     }
   };
 
@@ -1008,8 +1012,8 @@ export class AIChatModel extends AbstractChatModel {
   private _nameChanged = new Signal<AIChatModel, string>(this);
   private _trans: TranslationBundle;
   private _contentsManager?: Contents.IManager;
-  private _autoSave: boolean = false;
-  private _autoSaveDebouncer: Debouncer;
+  private _autosave: boolean = false;
+  private _autosaveDebouncer: Debouncer;
 }
 
 namespace Private {
@@ -1273,10 +1277,10 @@ namespace Private {
   }
 
   export async function saveChat(
+    model: AIChatModel,
     contentsManager: Contents.IManager,
-    model: AIChatModel
+    directory: string
   ) {
-    const directory = '.chats-backup';
     const filepath = PathExt.join(directory, `${model.name}.json`);
     const content = JSON.stringify(serializeModel(model));
     await contentsManager.get(filepath, { content: false }).catch(async () => {
@@ -1329,6 +1333,7 @@ namespace Private {
     }));
     model.clearMessages();
     model.messagesInserted(0, messages);
+    model.autosave = content.autosave ?? false;
     return true;
   }
 
@@ -1349,7 +1354,8 @@ namespace Private {
     return {
       provider,
       messages,
-      users
+      users,
+      autosave: model.autosave
     };
   };
 }
@@ -1390,6 +1396,10 @@ export namespace AIChatModel {
      * The contents manager.
      */
     contentsManager?: Contents.IManager;
+    /**
+     * Whether to restore or not the message (default to true)
+     */
+    restore?: boolean;
   }
 
   /**
@@ -1430,5 +1440,9 @@ export namespace AIChatModel {
      * The user list.
      */
     users: { [id: string]: IUser };
+    /**
+     * Whether the chat is automatically saved.
+     */
+    autosave: boolean;
   };
 }
