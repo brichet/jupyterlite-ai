@@ -79,6 +79,8 @@ import { ProviderRegistry } from './providers/provider-registry';
 
 import { ApprovalButtons } from './approval-buttons';
 
+import { SaveComponentWidget } from './components/save-button';
+
 import { ChatModelHandler } from './chat-model-handler';
 
 import {
@@ -541,33 +543,32 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
         tokenUsageWidget
       );
 
-      const saveChatButton = new CommandToolbarButton({
-        commands: app.commands,
-        id: CommandIds.saveChat,
-        args: {
-          name: model.name
-        }
-      });
+      if (model.backupAvailable) {
+        const saveChatButton = new SaveComponentWidget({
+          model,
+          translator: trans
+        });
 
-      chatPanel.current?.toolbar.insertAfter(
-        'markRead',
-        'saveChat',
-        saveChatButton
-      );
+        chatPanel.current?.toolbar.insertAfter(
+          'markRead',
+          'saveChat',
+          saveChatButton
+        );
 
-      const restoreChatButton = new CommandToolbarButton({
-        commands: app.commands,
-        id: CommandIds.restoreChat,
-        args: {
-          name: model.name
-        }
-      });
+        const restoreChatButton = new CommandToolbarButton({
+          commands: app.commands,
+          id: CommandIds.restoreChat,
+          args: {
+            name: model.name
+          }
+        });
 
-      chatPanel.current?.toolbar.insertAfter(
-        'saveChat',
-        'restoreChat',
-        restoreChatButton
-      );
+        chatPanel.current?.toolbar.insertAfter(
+          'saveChat',
+          'restoreChat',
+          restoreChatButton
+        );
+      }
 
       // Listen for writers change to display the stop button.
       function writersChanged(_: IChatModel, writers: IChatModel.IWriter[]) {
