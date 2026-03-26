@@ -79,8 +79,6 @@ import { ProviderRegistry } from './providers/provider-registry';
 
 import { ApprovalButtons } from './approval-buttons';
 
-import { restoreChat, saveChat } from './backup';
-
 import { ChatModelHandler } from './chat-model-handler';
 
 import {
@@ -333,7 +331,7 @@ const chatModelHandler: JupyterFrontEndPlugin<IChatModelHandler> = {
   ],
   optional: [IProviderRegistry, IToolRegistry, ITranslator],
   provides: IChatModelHandler,
-  activate: (
+  activate: async (
     app: JupyterFrontEnd,
     settingsModel: IAISettingsModel,
     agentManagerFactory: IAgentManagerFactory,
@@ -342,8 +340,10 @@ const chatModelHandler: JupyterFrontEndPlugin<IChatModelHandler> = {
     providerRegistry?: IProviderRegistry,
     toolRegistry?: IToolRegistry,
     translator?: ITranslator
-  ): IChatModelHandler => {
+  ): Promise<IChatModelHandler> => {
     const trans = (translator ?? nullTranslator).load('jupyterlite_ai');
+
+    await app.serviceManager.ready;
 
     return new ChatModelHandler({
       settingsModel,
@@ -352,7 +352,8 @@ const chatModelHandler: JupyterFrontEndPlugin<IChatModelHandler> = {
       rmRegistry,
       providerRegistry,
       toolRegistry,
-      trans
+      trans,
+      contentsManager: app.serviceManager.contents
     });
   }
 };
@@ -935,7 +936,7 @@ function registerCommands(
           return false;
         }
 
-        saveChat(app.serviceManager.contents, model);
+        model.save();
         return true;
       },
       describedBy: {
@@ -983,7 +984,7 @@ function registerCommands(
             return false;
           }
         }
-        return restoreChat(app.serviceManager.contents, model, settingsModel);
+        return model.restore();
       },
       describedBy: {
         args: {
