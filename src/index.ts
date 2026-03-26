@@ -457,7 +457,10 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
           name = `${modelName}-${i}`;
           i += 1;
         }
-        const model = modelHandler.createModel({ name, activeProvider: provider });
+        const model = modelHandler.createModel({
+          name,
+          activeProvider: provider
+        });
         return { model };
       },
       getChatNames: async () => {
@@ -773,7 +776,10 @@ function registerCommands(
           name = providerConfig.name;
         }
 
-        const model = modelRegistry.createModel({ name, activeProvider: provider });
+        const model = modelRegistry.createModel({
+          name,
+          activeProvider: provider
+        });
         if (!model) {
           return false;
         }
