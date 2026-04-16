@@ -357,6 +357,9 @@ const chatModelHandler: JupyterFrontEndPlugin<IChatModelHandler> = {
   }
 };
 
+/**
+ * The active cell manager plugin, to allow copying code from chat to notebook.
+ */
 const activeCellManager: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlite/ai:activeCellManager',
   description: 'Add the active cell manager to the model handler',
@@ -367,8 +370,6 @@ const activeCellManager: JupyterFrontEndPlugin<void> = {
     modelHandler: IChatModelHandler,
     notebookTracker: INotebookTracker
   ) => {
-    // Create ActiveCellManager if notebook tracker is available, and add it to the
-    // model registry.
     let activeCellManager: ActiveCellManager | undefined;
     if (notebookTracker) {
       activeCellManager = new ActiveCellManager({
