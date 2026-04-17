@@ -700,13 +700,18 @@ export class AIChatModel extends AbstractChatModel {
       body: '',
       mime_model: {
         data: {
-          'application/vnd.jupyter.chat.components': 'tool-call'
+          'application/vnd.jupyter.chat.components': 'grouped-tool-calls'
         },
         metadata: {
-          toolName: context.toolName,
-          input: context.input,
-          status: context.status,
-          summary: context.summary
+          toolCalls: [
+            {
+              toolCallId: context.toolCallId,
+              title: context.summary || context.toolName,
+              kind: context.toolName,
+              status: 'in_progress',
+              rawInput: context.input
+            }
+          ]
         }
       },
       sender: this._getAIUser(),
@@ -824,6 +829,15 @@ export class AIChatModel extends AbstractChatModel {
   }
 
   /**
+   * Gets the approval ID for a given tool call ID.
+   * @param toolCallId The tool call ID
+   * @returns The approval ID or null if not found
+   */
+  getApprovalIdForToolCall(toolCallId: string): string | null {
+    return this._toolContexts.get(toolCallId)?.approvalId || null;
+  }
+
+  /**
    * Updates a tool call's UI with new status and optional output.
    */
   private _updateToolCallUI(
@@ -847,16 +861,29 @@ export class AIChatModel extends AbstractChatModel {
     existingMessage.update({
       mime_model: {
         data: {
-          'application/vnd.jupyter.chat.components': 'tool-call'
+          'application/vnd.jupyter.chat.components': 'grouped-tool-calls'
         },
         metadata: {
-          toolName: context.toolName,
-          input: context.input,
-          status: context.status,
-          summary: context.summary,
-          output,
-          targetId: this.name,
-          approvalId: context.approvalId
+          toolCalls: [
+            {
+              toolCallId: context.toolCallId,
+              title: context.summary || context.toolName,
+              kind: context.toolName,
+              status: context.status,
+              rawInput: context.input,
+              rawOutput: output,
+              sessionId: this.name,
+              permissionStatus:
+                status === 'awaiting_approval' ? 'pending' : 'resolved',
+              ...(context.approvalId &&
+                status === 'awaiting_approval' && {
+                  permissionOptions: [
+                    { optionId: 'approve', name: 'Approve', kind: 'approve' },
+                    { optionId: 'reject', name: 'Reject', kind: 'reject' }
+                  ]
+                })
+            }
+          ]
         }
       }
     });
