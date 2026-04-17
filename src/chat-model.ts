@@ -67,10 +67,6 @@ interface IToolExecutionContext {
    */
   input: string;
   /**
-   * Optional approval ID if awaiting approval.
-   */
-  approvalId?: string;
-  /**
    * Current status.
    */
   status: ToolStatus;
@@ -802,7 +798,6 @@ export class AIChatModel extends AbstractChatModel {
     if (!context) {
       return;
     }
-    context.approvalId = event.data.approvalId;
     context.input = JSON.stringify(event.data.args, null, 2);
     this._updateToolCallUI(event.data.toolCallId, 'awaiting_approval');
   }
@@ -813,28 +808,17 @@ export class AIChatModel extends AbstractChatModel {
   private _handleToolApprovalResolved(
     event: IAgentManager.IAgentEvent<'tool_approval_resolved'>
   ): void {
-    const context = Array.from(this._toolContexts.values()).find(
-      ctx => ctx.approvalId === event.data.approvalId
-    );
+    const context = this._toolContexts.get(event.data.toolCallId);
     if (!context) {
       return;
     }
 
     const status = event.data.approved ? 'approved' : 'rejected';
-    this._updateToolCallUI(context.toolCallId, status);
+    this._updateToolCallUI(event.data.toolCallId, status);
 
     if (!event.data.approved) {
       this._toolContexts.delete(context.toolCallId);
     }
-  }
-
-  /**
-   * Gets the approval ID for a given tool call ID.
-   * @param toolCallId The tool call ID
-   * @returns The approval ID or null if not found
-   */
-  getApprovalIdForToolCall(toolCallId: string): string | null {
-    return this._toolContexts.get(toolCallId)?.approvalId || null;
   }
 
   /**
@@ -875,13 +859,12 @@ export class AIChatModel extends AbstractChatModel {
               sessionId: this.name,
               permissionStatus:
                 status === 'awaiting_approval' ? 'pending' : 'resolved',
-              ...(context.approvalId &&
-                status === 'awaiting_approval' && {
-                  permissionOptions: [
-                    { optionId: 'approve', name: 'Approve', kind: 'approve' },
-                    { optionId: 'reject', name: 'Reject', kind: 'reject' }
-                  ]
-                })
+              ...(status === 'awaiting_approval' && {
+                permissionOptions: [
+                  { optionId: 'approve', name: 'Approve', kind: 'approve' },
+                  { optionId: 'reject', name: 'Reject', kind: 'reject' }
+                ]
+              })
             }
           ]
         }

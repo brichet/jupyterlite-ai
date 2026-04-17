@@ -654,17 +654,10 @@ const plugin: JupyterFrontEndPlugin<IChatTracker> = {
         return;
       }
 
-      // Find the approval ID for this tool call ID
-      const approvalId = model.getApprovalIdForToolCall(toolCallId);
-      if (!approvalId) {
-        console.error(`No approval ID found for tool call ${toolCallId}`);
-        return;
-      }
-
       const isApproved = optionId === 'approve';
       isApproved
-        ? model.agentManager.approveToolCall(approvalId)
-        : model.agentManager.rejectToolCall(approvalId);
+        ? model.agentManager.approveToolCall(toolCallId)
+        : model.agentManager.rejectToolCall(toolCallId);
     }
 
     if (chatComponentsFactory) {
