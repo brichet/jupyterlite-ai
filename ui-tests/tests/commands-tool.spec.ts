@@ -55,7 +55,7 @@ test.describe('#commandsTool', () => {
     await expect(stopButton).toHaveCount(0, { timeout: EXPECT_TIMEOUT });
 
     // Wait for tool call to appear
-    const toolCall = panel.locator('.jp-ai-tool-call');
+    const toolCall = panel.locator('.jp-ai-tool-call-item');
     await expect(toolCall).toHaveCount(1, { timeout: EXPECT_TIMEOUT });
 
     await expect(toolCall).toContainText('discover_commands', {
@@ -106,7 +106,7 @@ test.describe('#commandsTool', () => {
     const stopButton = panel.getByTitle('Stop streaming');
     await expect(stopButton).toHaveCount(0, { timeout: EXPECT_TIMEOUT });
 
-    const toolCall = panel.locator('.jp-ai-tool-call');
+    const toolCall = panel.locator('.jp-ai-tool-call-item');
     await expect(toolCall).toHaveCount(1, { timeout: EXPECT_TIMEOUT });
 
     await expect(toolCall).toContainText('discover_commands', {
@@ -158,7 +158,7 @@ test.describe('#commandsTool', () => {
     await expect(stopButton).toHaveCount(0, { timeout: EXPECT_TIMEOUT });
 
     // Wait for tool call to appear
-    const toolCall = panel.locator('.jp-ai-tool-call');
+    const toolCall = panel.locator('.jp-ai-tool-call-item');
     await expect(toolCall).toHaveCount(1, { timeout: EXPECT_TIMEOUT });
 
     // Verify the tool was called
@@ -215,7 +215,7 @@ test.describe('#commandsTool', () => {
     await expect(stopButton).toHaveCount(0, { timeout: EXPECT_TIMEOUT });
 
     // Wait for tool call to appear
-    const toolCall = panel.locator('.jp-ai-tool-call');
+    const toolCall = panel.locator('.jp-ai-tool-call-item');
     await expect(toolCall).toHaveCount(1, { timeout: EXPECT_TIMEOUT });
 
     // Verify the tool was called and the command name is displayed in the summary

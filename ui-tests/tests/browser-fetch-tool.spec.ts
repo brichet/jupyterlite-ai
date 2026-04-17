@@ -52,7 +52,7 @@ test.describe('#browserFetchTool', () => {
     ).toHaveCount(1, { timeout: EXPECT_TIMEOUT });
 
     const browserFetchCall = panel
-      .locator('.jp-ai-tool-call')
+      .locator('.jp-ai-tool-call-item')
       .filter({ hasText: 'browser_fetch' })
       .first();
 
