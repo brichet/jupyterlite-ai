@@ -112,13 +112,19 @@ test.describe('#mimeBundles', () => {
     await expect(executeToolCall).toContainText('execute_command', {
       timeout: EXPECT_TIMEOUT
     });
-    await expect(executeToolCall).toContainText(
+
+    // Click to expand the tool call
+    await executeToolCall.click();
+    const toolCallDetails = executeToolCall.locator(
+      '> .jp-ai-tool-call-item-detail'
+    );
+    await expect(toolCallDetails).toContainText(
       `"commandId": "${TEST_MIME_BUNDLE_COMMAND_ID}"`,
       {
         timeout: EXPECT_TIMEOUT
       }
     );
-    await expect(executeToolCall).not.toContainText('"args": "', {
+    await expect(toolCallDetails).not.toContainText('"args": "', {
       timeout: EXPECT_TIMEOUT
     });
 

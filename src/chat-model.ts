@@ -702,7 +702,7 @@ export class AIChatModel extends AbstractChatModel {
           toolCalls: [
             {
               toolCallId: context.toolCallId,
-              title: context.summary || context.toolName,
+              title: `${context.toolName}${context.summary ? ' : ' + context.summary : ''}`,
               kind: context.toolName,
               status: 'in_progress',
               rawInput: context.input
@@ -851,7 +851,7 @@ export class AIChatModel extends AbstractChatModel {
           toolCalls: [
             {
               toolCallId: context.toolCallId,
-              title: context.summary || context.toolName,
+              title: `${context.toolName}${context.summary ? ' : ' + context.summary : ''}`,
               kind: context.toolName,
               status: context.status,
               rawInput: context.input,
