@@ -861,8 +861,8 @@ export class AIChatModel extends AbstractChatModel {
                 status === 'awaiting_approval' ? 'pending' : 'resolved',
               ...(status === 'awaiting_approval' && {
                 permissionOptions: [
-                  { optionId: 'approve', name: 'Approve', kind: 'approve' },
-                  { optionId: 'reject', name: 'Reject', kind: 'reject' }
+                  { optionId: 'approve', name: 'Approve', kind: 'allow_once' },
+                  { optionId: 'reject', name: 'Reject', kind: 'reject_once' }
                 ]
               })
             }
