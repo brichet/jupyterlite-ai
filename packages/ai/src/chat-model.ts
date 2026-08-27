@@ -105,9 +105,10 @@ export class AIChatModel extends AbstractChatModel implements IAIChatModel {
           | string
           | undefined) ?? '';
       const filepath = PathExt.join(directory, `${this.name}.chat`);
-      this.restore(filepath, true);
+      this.restore(filepath, true).then(() => this.setReady());
+    } else {
+      this.setReady();
     }
-    this.setReady();
   }
 
   /**
