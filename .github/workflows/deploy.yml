@@ -21,6 +21,14 @@ jobs:
           version: '0.9.5'
           enable-cache: true
 
+      - name: Install jlpm
+        run: pip install "jupyterlab>=4.0.0,<5"
+
+      - name: Build JavaScript extensions
+        run: |
+          jlpm install
+          jlpm build:prod
+
       - name: Set up Python
         run: uv python install
         working-directory: ./demo
