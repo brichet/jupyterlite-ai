@@ -38,8 +38,11 @@ jobs:
         run: |
           set -eux
           python scripts/bump_version.py 1.2.3
-          # Check Python version file
+          # Check Python version files
           grep '__version__ = "1.2.3"' python/jupyterlite-ai/jupyterlite_ai/_version.py
+          grep '__version__ = "1.2.3"' python/jupyternaut-persona/jupyternaut_persona/_version.py
+          # Check intra-monorepo dependency constraint
+          grep 'jupyternaut-persona ==1.2.3' python/jupyterlite-ai/pyproject.toml
           # Check root package.json
           python3 <<'PY'
           import json
@@ -63,6 +66,8 @@ jobs:
           git checkout .
           python scripts/bump_version.py 2.0.0a1
           grep '__version__ = "2.0.0a1"' python/jupyterlite-ai/jupyterlite_ai/_version.py
+          grep '__version__ = "2.0.0a1"' python/jupyternaut-persona/jupyternaut_persona/_version.py
+          grep 'jupyternaut-persona ==2.0.0a1' python/jupyterlite-ai/pyproject.toml
           python3 <<'PY'
           import json
           with open('package.json') as f:
@@ -81,7 +86,7 @@ jobs:
           output=$(python scripts/bump_version.py 9.9.9 2>&1) && exit 1 || true
           echo "$output" | grep -q "Must be in a clean git state"
           # Verify nothing was changed by the failed command
-          [ -z "$(git diff HEAD -- python/jupyterlite-ai/ packages/ package.json)" ]
+          [ -z "$(git diff HEAD -- python/ packages/ package.json)" ]
 
       - name: Test --skip-if-dirty with dirty git state
         run: |
@@ -93,4 +98,4 @@ jobs:
           # Run bump with --skip-if-dirty — should exit successfully and make no changes
           python scripts/bump_version.py --skip-if-dirty 9.9.9
           # Verify nothing was changed
-          [ -z "$(git diff HEAD -- python/jupyterlite-ai/ packages/ package.json)" ]
+          [ -z "$(git diff HEAD -- python/ packages/ package.json)" ]

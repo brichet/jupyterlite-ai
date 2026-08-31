@@ -31,6 +31,7 @@ dependencies = [
     "jupyter-chat-components >=0.6.0,<0.7",
     "jupyter-secrets-manager >=0.5,<0.6",
     "jupyterlab-ai-commands >=0.3.1,<0.4",
+    "jupyternaut-persona ==0.19.0",
 ]
 dynamic = ["version"]
 
@@ -65,7 +66,6 @@ exclude = [".github", "binder"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "jupyterlite_ai/labextension" = "share/jupyter/labextensions/@jupyterlite/ai"
-"install.json" = "share/jupyter/labextensions/@jupyterlite/ai/install.json"
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder>=0.5"]

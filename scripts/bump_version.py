@@ -2,6 +2,7 @@
 # Distributed under the terms of the Modified BSD License.
 
 import json
+import re
 from pathlib import Path
 
 import click
@@ -125,6 +126,32 @@ def bump(skip_if_dirty, spec):
         else:
             version_spec = spec
         version_file.write_text(f'__version__ = "{version_spec}"\n')
+
+    # Collect local Python package names (normalize underscores to dashes per PEP 508)
+    local_python_packages = set()
+    for pkg_dir in HERE.glob("python/*/"):
+        pyproject_file = pkg_dir / "pyproject.toml"
+        if pyproject_file.exists():
+            content = pyproject_file.read_text()
+            match = re.search(r'^name\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+            if match:
+                local_python_packages.add(match.group(1).replace("_", "-"))
+
+    # Update intra-monorepo dependency constraints in pyproject.toml files
+    for pyproject_file in HERE.glob("python/*/pyproject.toml"):
+        content = pyproject_file.read_text()
+        changed = False
+        for local_pkg_name in local_python_packages:
+            updated = re.sub(
+                rf'({re.escape(local_pkg_name)}\s*)==[^\s,"\']+',
+                rf'\g<1>=={version}',
+                content,
+            )
+            if updated != content:
+                content = updated
+                changed = True
+        if changed:
+            pyproject_file.write_text(content)
 
 
 if __name__ == "__main__":
