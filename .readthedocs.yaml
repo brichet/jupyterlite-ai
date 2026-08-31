@@ -16,6 +16,9 @@ build:
       - | # build lite and update doc URL if the doc is for a PR
         if [ "$READTHEDOCS_VERSION_TYPE" = "external" ]; then
           pip install uv
+          pip install "jupyterlab>=4.0.0,<5"
+          jlpm install
+          jlpm build:prod
           uv python install
           uv sync --locked --all-extras --dev --directory=demo
           mkdir -p demo/contents
