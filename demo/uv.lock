@@ -794,6 +794,20 @@ wheels = [
 ]
 
 [[package]]
+name = "jupyter-builder"
+version = "1.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jupyter-core" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "traitlets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/e1/e4ef07e2be228271b59e011a746d97feef69577af1f465b1cff0f1d7c760/jupyter_builder-1.2.2.tar.gz", hash = "sha256:b6cea88f58e44b2c5eba96f28d2e0d16fd453d3ca6dc9c4492ff8a1f2e97f601", size = 981074, upload-time = "2026-08-07T06:47:18.742Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/3b/920bc7f3c2ad25abc0071ae7ae55789f4b85ecf3e4467f0602a88dc668cb/jupyter_builder-1.2.2-py3-none-any.whl", hash = "sha256:6ebcd4c49daf5df6a18068a74a48010406700ed90a76c189fac43eaf85c60c63", size = 915266, upload-time = "2026-08-07T06:47:16.249Z" },
+]
+
+[[package]]
 name = "jupyter-chat-components"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -922,7 +936,7 @@ wheels = [
 
 [[package]]
 name = "jupyter-server"
-version = "2.17.0"
+version = "2.21.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -945,9 +959,9 @@ dependencies = [
     { name = "traitlets" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/ac/e040ec363d7b6b1f11304cc9f209dac4517ece5d5e01821366b924a64a50/jupyter_server-2.17.0.tar.gz", hash = "sha256:c38ea898566964c888b4772ae1ed58eca84592e88251d2cfc4d171f81f7e99d5", size = 731949, upload-time = "2025-08-21T14:42:54.042Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/e0/63b481d5b21f81fe23173dfc9eb25629fa1bc174fdc4a2c19d09c1ff8124/jupyter_server-2.21.0.tar.gz", hash = "sha256:70d9a1883f57d3576ea17f4ce061ec1a7aad7ef388d00428cfb7f5e4f0022271", size = 760357, upload-time = "2026-08-27T16:06:34.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/80/a24767e6ca280f5a49525d987bf3e4d7552bf67c8be07e8ccf20271f8568/jupyter_server-2.17.0-py3-none-any.whl", hash = "sha256:e8cb9c7db4251f51ed307e329b81b72ccf2056ff82d50524debde1ee1870e13f", size = 388221, upload-time = "2025-08-21T14:42:52.034Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/8a/cb97c2b353cb46cced413be8f742fa8fcd3cb1659524f27314494aa94968/jupyter_server-2.21.0-py3-none-any.whl", hash = "sha256:2ae2e5ce5e97268553e25aebe040197455673d925b5fc7995477153318160cf7", size = 393961, upload-time = "2026-08-27T16:06:31.814Z" },
 ]
 
 [[package]]
@@ -1009,27 +1023,28 @@ wheels = [
 
 [[package]]
 name = "jupyterlab"
-version = "4.5.6"
+version = "4.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "async-lru" },
     { name = "httpx" },
     { name = "ipykernel" },
     { name = "jinja2" },
+    { name = "jupyter-builder" },
     { name = "jupyter-core" },
     { name = "jupyter-lsp" },
     { name = "jupyter-server" },
     { name = "jupyterlab-server" },
     { name = "notebook-shim" },
     { name = "packaging" },
-    { name = "setuptools" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "tornado" },
     { name = "traitlets" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/d5/730628e03fff2e8a8e8ccdaedde1489ab1309f9a4fa2536248884e30b7c7/jupyterlab-4.5.6.tar.gz", hash = "sha256:642fe2cfe7f0f5922a8a558ba7a0d246c7bc133b708dfe43f7b3a826d163cf42", size = 23970670, upload-time = "2026-03-11T14:17:04.531Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/c0/45934229995d4c6e38192ca118d93185f60808f64157e3df3c5c28f8c5fd/jupyterlab-4.6.3.tar.gz", hash = "sha256:2e3db6e3a12495ebd188276e985bf5ac502fbde3d1e8628819920210008de498", size = 28319771, upload-time = "2026-08-10T18:50:57.947Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/1b/dad6fdcc658ed7af26fdf3841e7394072c9549a8b896c381ab49dd11e2d9/jupyterlab-4.5.6-py3-none-any.whl", hash = "sha256:d6b3dac883aa4d9993348e0f8e95b24624f75099aed64eab6a4351a9cdd1e580", size = 12447124, upload-time = "2026-03-11T14:17:00.229Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/47/242f46de028074651c9bd6d8000fc340ed0d3cdd1a0eae4387826123413a/jupyterlab-4.6.3-py3-none-any.whl", hash = "sha256:0a1ebc6567186f1eabd99536e94df7ed9e96d1e7c5ddf3e4406ae16e88abacb7", size = 17168312, upload-time = "2026-08-10T18:50:53.044Z" },
 ]
 
 [[package]]
@@ -1201,29 +1216,29 @@ requires-dist = [
 
 [[package]]
 name = "jupyterlite-core"
-version = "0.7.4"
+version = "0.8.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "doit" },
     { name = "jupyter-core" },
     { name = "pycparser", marker = "platform_python_implementation == 'PyPy'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/a9/db34fc372bf37daba4ecd8ae10f97d102483b27130e60a9f7c0075febfc9/jupyterlite_core-0.7.4.tar.gz", hash = "sha256:c8a74b4ca9792f611b657465f63a79543b381063ebebdc2b5b3b695704e14278", size = 16311836, upload-time = "2026-03-12T09:29:47.465Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/31/9b18a4cac1925ca9229c62a0a734554c91f8795b19dc6e2be18084334a56/jupyterlite_core-0.8.3.tar.gz", hash = "sha256:92735e2de4e1f67b411a218094d609b21350327d46454d89de84f113cd8440ae", size = 15791222, upload-time = "2026-08-20T14:27:29.986Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/fc/0518d2de703fbdb328eed8e791fddd8628880719b4f0bf1e82ce3f829020/jupyterlite_core-0.7.4-py3-none-any.whl", hash = "sha256:354785c7575a87a55c06f385d6c22e25ebbe7801d9d2dcdc4b41158d5bd3aa8c", size = 16323931, upload-time = "2026-03-12T09:29:44.634Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/f1/c527ec3191c1d4f3019c4fdf08697adfdbb4054e31b0282b559cf15d4aa4/jupyterlite_core-0.8.3-py3-none-any.whl", hash = "sha256:f61b1dc434368794850dfeb9089e91bc86a2741dd6966e061edb028c8112c2e3", size = 15803305, upload-time = "2026-08-20T14:27:26.402Z" },
 ]
 
 [[package]]
 name = "jupyterlite-pyodide-kernel"
-version = "0.7.1"
+version = "0.8.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jupyterlite-core" },
     { name = "pkginfo" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/fe/5f9e535f1e15852cb5e5745aeb9d4e9b4eb67282c3e7402d2ca823c76c1f/jupyterlite_pyodide_kernel-0.7.1.tar.gz", hash = "sha256:5e52c57190057d816e8551db1b2541f9c0398f71ea54ca47004886db6931cd6c", size = 545914, upload-time = "2026-03-03T07:17:05.245Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/53/968cf7766ff1454ed3620d7fcddac9d954808e6fc94d575e9cdf3887b272/jupyterlite_pyodide_kernel-0.8.5.tar.gz", hash = "sha256:f9d5b411ae30c6be1be26994597a5b6f0cdf50bdd7bf303e2146bfd370a67ec7", size = 208968, upload-time = "2026-08-21T06:27:51.492Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/03/65978831184bf53ebe3d3d07b83a540c9fa253bbf244d2ae92a6f0c758dc/jupyterlite_pyodide_kernel-0.7.1-py3-none-any.whl", hash = "sha256:3176bea5b471ca412514e87746c4804945ada8b4329754a4a0e027fdc92edfa3", size = 560227, upload-time = "2026-03-03T07:17:03.108Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/8a/bbb03f742128df53b0aff54026918dc6ae7477aa2007e59bca7764f90c68/jupyterlite_pyodide_kernel-0.8.5-py3-none-any.whl", hash = "sha256:97b31147143f27ffd6d1b7fa46da5ec723c457f4a616ebcd7fd33f84117e7474", size = 222447, upload-time = "2026-08-21T06:27:49.206Z" },
 ]
 
 [[package]]
@@ -1231,6 +1246,7 @@ name = "jupyternaut-persona"
 source = { directory = "../python/jupyternaut-persona" }
 dependencies = [
     { name = "jupyter-ai-persona-manager" },
+    { name = "jupyter-ai-router" },
     { name = "jupyter-chat-components" },
     { name = "jupyter-mcp-manager" },
     { name = "jupyter-secrets-manager" },
@@ -1241,6 +1257,7 @@ dependencies = [
 requires-dist = [
     { name = "fastmcp", marker = "extra == 'test'", specifier = ">=3.2.3,<4" },
     { name = "jupyter-ai-persona-manager", specifier = ">=0.1.2,<0.2" },
+    { name = "jupyter-ai-router", specifier = "<0.1" },
     { name = "jupyter-book", marker = "extra == 'docs'" },
     { name = "jupyter-chat-components", specifier = ">=0.6.0,<0.7" },
     { name = "jupyter-mcp-manager", specifier = ">=0.2.0,<0.3" },
@@ -2213,15 +2230,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c5/f0/184b4b5f8d00f2a92cf96eec8967a3d550b52cf94362dad1100df9e48d57/send2trash-2.1.0.tar.gz", hash = "sha256:1c72b39f09457db3c05ce1d19158c2cbef4c32b8bedd02c155e49282b7ea7459", size = 17255, upload-time = "2026-01-14T06:27:36.056Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1c/78/504fdd027da3b84ff1aecd9f6957e65f35134534ccc6da8628eb71e76d3f/send2trash-2.1.0-py3-none-any.whl", hash = "sha256:0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c", size = 17610, upload-time = "2026-01-14T06:27:35.218Z" },
-]
-
-[[package]]
-name = "setuptools"
-version = "82.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
 ]
 
 [[package]]
