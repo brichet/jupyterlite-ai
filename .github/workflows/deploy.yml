@@ -21,6 +21,16 @@ jobs:
           version: '0.9.5'
           enable-cache: true
 
+      # build extensions
+      - name: Install jlpm
+        run: pip install "jupyterlab>=4.0.0,<5"
+
+      - name: Build JavaScript extensions
+        run: |
+          jlpm install
+          jlpm build:prod
+
+      # Install the projects
       - name: Set up Python
         run: uv python install
         working-directory: ./demo
@@ -29,6 +39,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
         working-directory: ./demo
 
+      # Build Jupyterlite assets
       - name: Copy files
         run: |
           mkdir contents
@@ -40,6 +51,23 @@ jobs:
           uv run jupyter lite build
         working-directory: ./demo
 
+      # Install playwright and test that extension is loaded in the deployment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          npm install
+          npx playwright install chromium --with-deps
+        working-directory: ./demo
+
+      - name: Test chat extension loads in JupyterLite
+        run: npx playwright test
+        working-directory: ./demo
+
+      # Upload artifacts
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:

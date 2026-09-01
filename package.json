@@ -52,6 +52,7 @@
       "tests",
       "**/__tests__",
       "ui-tests",
+      "demo",
       ".venv",
       "webpack.config.js",
       "python/jupyterlite-ai/jupyterlite_ai",
