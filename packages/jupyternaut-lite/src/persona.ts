@@ -10,6 +10,7 @@ import {
 import {
   IAttachment,
   IMessage,
+  IMessageMetadata,
   IChatModel,
   IUser,
   INewMessage
@@ -113,6 +114,7 @@ export class Persona implements IPersona {
 
     // Wait for the chat to be ready before connect to message update.
     this._model.ready.then(() => {
+      this._rebuildHistory();
       for (const message of this._model.messages) {
         this._respondedToIds.add(message.id);
       }
@@ -260,7 +262,11 @@ export class Persona implements IPersona {
     const modelMessages: ModelMessage[] = [];
     for (const msg of this._model.messages) {
       const isAI = msg.sender.bot === true;
-      if (!isAI && msg.attachments?.length) {
+      if (msg.metadata?.jupyternaut?.type === 'summary') {
+        // Replace all prior history with the summary as a system message.
+        modelMessages.length = 0;
+        modelMessages.push({ role: 'assistant', content: msg.body });
+      } else if (!isAI && msg.attachments?.length) {
         const enhancedContent = await processAttachments(
           msg.attachments,
           this._documentManager,
@@ -637,11 +643,35 @@ export class Persona implements IPersona {
     }
   }
 
-  sendSystemMessage(body: string): void {
-    this._model.sendMessage({
+  async sendSystemMessage(
+    body: string,
+    metadata?: IMessageMetadata
+  ): Promise<void> {
+    await this._model.sendMessage({
       body,
-      sender: this._persona
+      sender: this._persona,
+      ...(metadata ? { metadata } : {})
     });
+  }
+
+  async summarize(): Promise<void> {
+    const history = this._agent.getHistory();
+    if (history.length === 0) {
+      throw new Error('No conversation history to summarize');
+    }
+    const summary = await this._agent.textResponse([
+      ...history,
+      {
+        role: 'user',
+        content:
+          'Summarize the conversation above concisely. Capture the key topics, decisions, and any important context needed to continue the conversation.'
+      }
+    ]);
+    await this.sendSystemMessage(
+      `**Conversation summary**\n\n${summary}\n\n---\n*Messages above this point have been summarized.*`,
+      { jupyternaut: { type: 'summary' } }
+    );
+    await this._rebuildHistory();
   }
 
   /**
