@@ -21,7 +21,7 @@ import { AI_AVATAR } from './icons';
 import type { IModelOptions } from './providers/models';
 
 /**
- * Add the jupyternaut property to the chat metadata.
+ * Add the jupyternaut property to the chat message metadata.
  */
 declare module '@jupyter/chat' {
   interface IMessageMetadata {

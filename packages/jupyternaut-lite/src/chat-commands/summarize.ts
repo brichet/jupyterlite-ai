@@ -5,13 +5,15 @@
 
 import { ChatCommand, IChatCommandProvider, IInputModel } from '@jupyter/chat';
 
+import { DEFAULT_PERSONA } from '../tokens';
+
 export class SummarizeCommandProvider implements IChatCommandProvider {
   constructor(options: SummarizeCommandProvider.IOptions) {
     this._isDefault = options.isDefault;
     this._summarize = options.summarize;
   }
 
-  public id: string = '@jupyternaut/persona:summarize';
+  public id: string = '@jupyter-ai/jupyternaut-lite:summarize';
 
   async listCommandCompletions(
     inputModel: IInputModel
@@ -55,8 +57,12 @@ export class SummarizeCommandProvider implements IChatCommandProvider {
   }
 
   private _isActive(inputModel: IInputModel): boolean {
+    const metaPersonaId = (inputModel.getMetadata() as any).to_persona;
     const chatName = inputModel.chatContext?.name;
-    return !!chatName && this._isDefault(chatName);
+    return (
+      metaPersonaId === DEFAULT_PERSONA.username ||
+      (!!chatName && this._isDefault(chatName))
+    );
   }
 
   private _command: ChatCommand = {
