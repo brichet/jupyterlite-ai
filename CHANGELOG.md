@@ -2,6 +2,38 @@
 
 <!-- <START NEW CHANGELOG ENTRY> -->
 
+## 0.21.0
+
+([Full Changelog](https://github.com/jupyterlab/jupyter-ai-lite/compare/@jupyterlite/ai@0.20.1...12195a7e5a5278731211e9cfd24222116413e199))
+
+### Enhancements made
+
+- Add the token/context usage in persona manager component [#386](https://github.com/jupyterlab/jupyter-ai-lite/pull/386) ([@brichet](https://github.com/brichet), [@jtpio](https://github.com/jtpio))
+- Jupyternaut as standalone (no need for jupyterlite-ai) [#380](https://github.com/jupyterlab/jupyter-ai-lite/pull/380) ([@brichet](https://github.com/brichet), [@Copilot](https://github.com/Copilot), [@jtpio](https://github.com/jtpio))
+- Add the OpenRouter provider with account connection [#376](https://github.com/jupyterlab/jupyter-ai-lite/pull/376) ([@jtpio](https://github.com/jtpio), [@brichet](https://github.com/brichet))
+
+### Maintenance and upkeep improvements
+
+- Update links to the new repository location [#394](https://github.com/jupyterlab/jupyter-ai-lite/pull/394) ([@jtpio](https://github.com/jtpio))
+- Restructure packages [#393](https://github.com/jupyterlab/jupyter-ai-lite/pull/393) ([@jtpio](https://github.com/jtpio), [@brichet](https://github.com/brichet))
+- Clean up after the removal of `@jupyterlite/ai` [#392](https://github.com/jupyterlab/jupyter-ai-lite/pull/392) ([@jtpio](https://github.com/jtpio), [@brichet](https://github.com/brichet))
+- Pin Python==3.14 in RTD deployment [#391](https://github.com/jupyterlab/jupyter-ai-lite/pull/391) ([@brichet](https://github.com/brichet), [@jtpio](https://github.com/jtpio), [@nakul-py](https://github.com/nakul-py))
+- Migrate to ESLint 9 flat config with @jupyter/eslint-plugin [#389](https://github.com/jupyterlab/jupyter-ai-lite/pull/389) ([@jtpio](https://github.com/jtpio), [@brichet](https://github.com/brichet))
+- Remove @jupyterlite/ai package [#387](https://github.com/jupyterlab/jupyter-ai-lite/pull/387) ([@brichet](https://github.com/brichet), [@Copilot](https://github.com/Copilot), [@jtpio](https://github.com/jtpio))
+- Update jupyter-chat components to >=0.7 [#385](https://github.com/jupyterlab/jupyter-ai-lite/pull/385) ([@brichet](https://github.com/brichet), [@jtpio](https://github.com/jtpio))
+- Ignore deepwiki in check-links CI test [#384](https://github.com/jupyterlab/jupyter-ai-lite/pull/384) ([@brichet](https://github.com/brichet))
+
+### Contributors to this release
+
+The following people contributed discussions, new ideas, code and documentation contributions, and review.
+See [our definition of contributors](https://github-activity.readthedocs.io/en/latest/use/#how-does-this-tool-define-contributions-in-the-reports).
+
+([GitHub contributors page for this release](https://github.com/jupyterlab/jupyter-ai-lite/graphs/contributors?from=2026-09-28&to=2026-10-20&type=c))
+
+@brichet ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3Abrichet+updated%3A2026-09-28..2026-10-20&type=Issues)) | @Copilot ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3ACopilot+updated%3A2026-09-28..2026-10-20&type=Issues)) | @jtpio ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3Ajtpio+updated%3A2026-09-28..2026-10-20&type=Issues)) | @nakul-py ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3Anakul-py+updated%3A2026-09-28..2026-10-20&type=Issues))
+
+<!-- <END NEW CHANGELOG ENTRY> -->
+
 ## 0.20.1
 
 ([Full Changelog](https://github.com/jupyterlab/jupyter-ai-lite/compare/@jupyterlite/ai@0.20.0...00013ac714ca14ece6a9ec189d3d8ca6bdea2882))
@@ -28,8 +60,6 @@ See [our definition of contributors](https://github-activity.readthedocs.io/en/l
 ([GitHub contributors page for this release](https://github.com/jupyterlab/jupyter-ai-lite/graphs/contributors?from=2026-09-18&to=2026-09-28&type=c))
 
 @brichet ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3Abrichet+updated%3A2026-09-18..2026-09-28&type=Issues)) | @Copilot ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3ACopilot+updated%3A2026-09-18..2026-09-28&type=Issues)) | @jtpio ([activity](https://github.com/search?q=repo%3Ajupyterlab%2Fjupyter-ai-lite+involves%3Ajtpio+updated%3A2026-09-18..2026-09-28&type=Issues))
-
-<!-- <END NEW CHANGELOG ENTRY> -->
 
 ## 0.20.0
 
