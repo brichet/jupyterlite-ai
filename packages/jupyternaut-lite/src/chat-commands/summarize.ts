@@ -44,16 +44,16 @@ export class SummarizeCommandProvider implements IChatCommandProvider {
       return;
     }
 
-    inputModel.value = '';
-    inputModel.clearAttachments();
-    inputModel.clearMentions();
-
     const chatName = inputModel.chatContext?.name;
     if (!chatName) {
       return;
     }
 
-    await this._summarize(chatName);
+    this._summarize(chatName);
+
+    inputModel.value = '';
+    inputModel.clearAttachments();
+    inputModel.clearMentions();
   }
 
   private _isActive(inputModel: IInputModel): boolean {

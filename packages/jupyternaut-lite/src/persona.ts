@@ -646,8 +646,8 @@ export class Persona implements IPersona {
   async sendSystemMessage(
     body: string,
     metadata?: IMessageMetadata
-  ): Promise<void> {
-    await this._model.sendMessage({
+  ): Promise<string | null> {
+    return await this._model.sendMessage({
       body,
       sender: this._persona,
       ...(metadata ? { metadata } : {})
@@ -660,6 +660,9 @@ export class Persona implements IPersona {
     }
     this._busy = true;
     this._busyChanged.emit(true);
+    this._model.updateWriters([
+      { user: this._persona, typingIndicator: 'is summarizing...' }
+    ]);
     try {
       const history = this._agent.getHistory();
       if (history.length === 0) {
@@ -670,16 +673,20 @@ export class Persona implements IPersona {
         {
           role: 'user',
           content:
-            'Summarize the conversation above concisely. Capture the key topics, decisions, and any important context needed to continue the conversation.'
+            'Summarize the conversation above concisely. Capture the key topics, decisions, and any important context needed to continue the conversation. Return only a concise summary.'
         }
       ]);
-      await this.sendSystemMessage(
+      const msgId = await this.sendSystemMessage(
         `**Conversation summary**\n\n${summary}\n\n---\n*Messages above this point have been summarized.*`,
         { jupyternaut: { type: 'summary' } }
       );
-      await this._rebuildHistory();
+      if (msgId) {
+        await this._waitForMessage(msgId);
+        await this._rebuildHistory();
+      }
     } finally {
       this._busy = false;
+      this._model.updateWriters([]);
       this._busyChanged.emit(false);
     }
   }

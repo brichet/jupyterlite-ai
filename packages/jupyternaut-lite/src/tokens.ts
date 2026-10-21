@@ -94,7 +94,10 @@ export interface IPersona {
   /**
    * Adds an assistant message to the chat (used by chat commands).
    */
-  sendSystemMessage(body: string, metadata?: IMessageMetadata): Promise<void>;
+  sendSystemMessage(
+    body: string,
+    metadata?: IMessageMetadata
+  ): Promise<string | null>;
   /**
    * Summarizes the conversation history and saves the result as a system message.
    */
